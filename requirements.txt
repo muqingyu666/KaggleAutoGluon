@@ -1,0 +1,5 @@
+autogluon
+pandas
+matplotlib
+PyYAML
+scikit-learn
