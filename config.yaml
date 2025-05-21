@@ -1,0 +1,30 @@
+# Configuration for AutoML pipeline
+
+# Seed for reproducibility
+SEED: 0
+
+# Target variable name
+LABEL: "income" # For classification, this is the class label. For regression, this is the continuous target.
+
+# File paths
+TRAIN_DATA_PATH: "data/train_data.csv"
+TEST_DATA_PATH: "data/test_data.csv"
+SAMPLE_SUBMISSION_PATH: "sample_submission.csv" # Optional, can be empty or null
+OUTPUT_DIR: "results" # Directory for all outputs (submission files, feature_importance.png, leaderboard.csv)
+MODELS_DIR: "autogluon_models" # Changed to relative path
+
+# AutoGluon settings
+TIME_LIMIT: 3600 # Training time limit in seconds
+EVAL_METRIC: "roc_auc" # Evaluation metric. 
+                       # For Classification: e.g., 'roc_auc', 'accuracy', 'f1', 'log_loss', 'precision', 'recall', 'pac_score'
+                       # For Regression: e.g., 'rmse', 'mse', 'mae', 'r2' (or 'root_mean_squared_error', etc.)
+PRESETS: "best_quality" # AutoGluon presets (e.g., 'best_quality', 'high_quality', 'medium_quality')
+
+# Prediction settings
+# For Classification:
+#   'class': Predicts only the class label.
+#   'prob': Predicts only the probability of the positive class (column named as '{LABEL}_probability').
+#   'both': Predicts both class label and probability.
+# For Regression:
+#   This setting is largely ignored. Output will be numerical predictions in the LABEL column.
+PREDICTION_TYPE: "both"
