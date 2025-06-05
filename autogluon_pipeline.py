@@ -343,14 +343,13 @@ def train_model(
             print(f"警告: 目标列 '{label_col}' 存在于特征元数据中。AutoGluon 通常期望元数据仅包含特征。")
             # It's generally safer for TabularDataset to receive metadata only for features.
             # However, AutoGluon might handle it. For robustness, one might consider removing it here.
-            
+
         print("使用提供的特征元数据初始化 TabularDataset。")
-        # It's important that train_df for TabularDataset contains the label column.
-        # FeatureMetadata should describe the types of the *features*.
-        ag_train = TabularDataset(train_df, feature_metadata=feature_metadata)
+        # TabularDataset does not accept feature_metadata directly; it will be passed to TabularPredictor.fit
+        ag_train = TabularDataset(train_df)
     else:
         print("未提供特征元数据，TabularDataset 将自动推断类型。")
-        ag_train = TabularDataset(train_df) # Default: AutoGluon infers types
+        ag_train = TabularDataset(train_df)  # Default: AutoGluon infers types
 
 
     # 拆分出验证集（简单方式：train_test_split）
@@ -384,12 +383,13 @@ def train_model(
     predictor = TabularPredictor(
         label=label_col,
         eval_metric=eval_metric,
-        path=MODELS_DIR, 
+        path=MODELS_DIR,
         verbosity=2,
     ).fit(
         train_data=train_data,
         time_limit=time_limit,
-        presets=presets, # Use presets from config
+        presets=presets,  # Use presets from config
+        feature_metadata=feature_metadata,  # Pass metadata here if provided
     )
 
     print("\n模型训练完成！")
