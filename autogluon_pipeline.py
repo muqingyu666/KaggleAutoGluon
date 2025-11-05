@@ -1,22 +1,40 @@
 # -*- coding: utf-8 -*-
-# @Author: Muqy
-# @Date:   2025-03-03 14:07
-# @Last Modified by:   Muqy
-# @Last Modified time: 2025-03-06 11:01
+"""
+Kaggle AutoGluon 自动机器学习流程
+==================================
 
+这是一个基于AutoGluon的通用AutoML流程，支持：
+- 自动识别分类/回归任务
+- 智能数据预处理
+- 自动模型训练和集成
+- 生成Kaggle提交文件
+
+作者: Muqy
+创建日期: 2025-03-03
+最后修改: 2025-03-06
+
+使用方法:
+    1. 准备数据文件（train.csv, test.csv）
+    2. 修改 config.yaml 配置
+    3. 运行: python autogluon_pipeline.py
+"""
 
 import pandas as pd
 import numpy as np
 import os
 import warnings
 import matplotlib.pyplot as plt
-import yaml # Added for YAML configuration
+import yaml
 
 # 导入AutoGluon相关模块
 from autogluon.tabular import TabularDataset, TabularPredictor
-from autogluon.common.features.feature_metadata import FeatureMetadata # Added for explicit feature types
+from autogluon.common.features.feature_metadata import FeatureMetadata
 from sklearn.model_selection import train_test_split
 
+# 导入本地工具模块
+from utils import validate_config, validate_data, print_data_info
+
+# 忽略警告信息，保持输出清爽
 warnings.filterwarnings("ignore")
 
 # ==============================
@@ -25,10 +43,37 @@ warnings.filterwarnings("ignore")
 CONFIG_PATH = "config.yaml"
 
 def load_config(config_path):
-    """加载 YAML 配置文件"""
+    """
+    加载并验证YAML配置文件
+
+    参数：
+    ----------
+    config_path : str
+        配置文件路径
+
+    返回：
+    ----------
+    dict : 配置字典
+    """
     print(f"加载配置文件: {config_path}")
+
+    # 检查文件是否存在
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"配置文件不存在: {config_path}")
+
+    # 加载配置
     with open(config_path, 'r', encoding='utf-8') as f:
         config_data = yaml.safe_load(f)
+
+    # 验证配置
+    is_valid, errors = validate_config(config_data)
+    if not is_valid:
+        print("\n❌ 配置文件验证失败:")
+        for error in errors:
+            print(f"  - {error}")
+        raise ValueError("配置文件包含错误，请检查并修正")
+
+    print("✓ 配置文件验证通过")
     return config_data
 
 config = load_config(CONFIG_PATH)
@@ -62,10 +107,37 @@ PREDICTION_TYPE = config['PREDICTION_TYPE']
 # Helper Function for Problem Type
 # ==============================
 def get_problem_type(eval_metric):
-    """Determines problem type based on evaluation metric."""
+    """
+    根据评估指标自动判断任务类型
+
+    这是一个智能函数，通过分析config.yaml中设置的EVAL_METRIC，
+    自动判断当前任务是分类还是回归问题。
+
+    参数：
+    ----------
+    eval_metric : str
+        评估指标名称，例如 'roc_auc', 'accuracy', 'rmse' 等
+
+    返回：
+    ----------
+    str : 任务类型
+        - 'classification': 分类任务
+        - 'regression': 回归任务
+        - 'other': 未知任务类型
+
+    示例：
+    ----------
+    >>> get_problem_type('roc_auc')
+    'classification'
+    >>> get_problem_type('rmse')
+    'regression'
+    """
+    # 常见的分类任务评估指标
     classification_metrics = ['roc_auc', 'accuracy', 'f1', 'precision', 'recall', 'log_loss', 'pac_score']
+
+    # 常见的回归任务评估指标
     regression_metrics = ['rmse', 'mse', 'mae', 'r2', 'root_mean_squared_error', 'mean_squared_error', 'mean_absolute_error']
-    
+
     if eval_metric.lower() in classification_metrics:
         return 'classification'
     elif eval_metric.lower() in regression_metrics:
@@ -73,7 +145,9 @@ def get_problem_type(eval_metric):
     else:
         return 'other'
 
-PROBLEM_TYPE = get_problem_type(EVAL_METRIC) # Determine problem type globally for use in multiple functions
+# 全局变量：根据评估指标确定任务类型
+# 这个变量会在整个流程中使用，确保分类和回归任务的处理逻辑正确
+PROBLEM_TYPE = get_problem_type(EVAL_METRIC)
 
 # ==============================
 # 函数定义
@@ -128,6 +202,7 @@ def load_data(train_path, test_path, sample_submission_path=None):
         print("\n样本提交文件前5行示例：")
         print(sample_submission_df.head())
 
+    print("\n数据加载完成！")
     return train_df, test_df, sample_submission_df
 
 
@@ -167,34 +242,49 @@ def basic_preprocessing(
     """
     print("\n=== [2] 数据预处理 ===")
 
-    # ========== 2.1 缺失值处理 ==========
+    # ========== 2.1 缺失值检查和处理 ==========
+    # 首先检查训练集和测试集的缺失值情况
+    # 这有助于了解数据质量和选择合适的填充策略
     print("\n检查训练集缺失值：")
     missing_train = train_df.isnull().sum()
-    print(missing_train[missing_train > 0])
+    if missing_train.sum() > 0:
+        print(missing_train[missing_train > 0])
+    else:
+        print("训练集无缺失值")
 
     print("\n检查测试集缺失值：")
     missing_test = test_df.isnull().sum()
-    print(missing_test[missing_test > 0])
+    if missing_test.sum() > 0:
+        print(missing_test[missing_test > 0])
+    else:
+        print("测试集无缺失值")
 
-    # 数值列：缺失值处理
+    # ========== 2.2 数值列缺失值填充 ==========
+    # 识别所有数值类型的列（整数和浮点数）
     numeric_cols = train_df.select_dtypes(include=["int64", "float64"]).columns
+    # 排除目标列，避免对目标列进行填充
+    numeric_cols = [col for col in numeric_cols if col != label_col]
+
     print(f"\n对数值列采用 '{numerical_imputation_strategy}' 策略填充缺失值...")
     for col in numeric_cols:
-        if train_df[col].isnull().sum() > 0: # Check if column has missing values
+        if train_df[col].isnull().sum() > 0:
             fill_value = None
+            # 根据策略选择填充值
             if numerical_imputation_strategy == "median":
-                fill_value = train_df[col].median()
+                fill_value = train_df[col].median()  # 中位数，对异常值不敏感
             elif numerical_imputation_strategy == "mean":
-                fill_value = train_df[col].mean()
-            else: # Default to median if strategy is unknown or not applicable
+                fill_value = train_df[col].mean()  # 均值，适用于正态分布数据
+            else:
+                # 如果策略未知，默认使用中位数
                 fill_value = train_df[col].median()
-                # Print warning only once for the first affected column with unknown strategy
-                if numeric_cols.tolist().index(col) == 0 and numerical_imputation_strategy not in ["median", "mean"]:
-                     print(f"警告: 未知的数值填充策略 '{numerical_imputation_strategy}' for column '{col}'. 将使用中位数填充。")
-            
+                if numeric_cols.index(col) == 0 and numerical_imputation_strategy not in ["median", "mean"]:
+                    print(f"警告: 未知的数值填充策略 '{numerical_imputation_strategy}'，将使用中位数填充")
+
+            # 使用训练集计算的统计值填充训练集和测试集
+            # 注意：测试集必须使用训练集的统计值，避免数据泄露
             train_df[col] = train_df[col].fillna(fill_value)
             if col in test_df.columns and test_df[col].isnull().sum() > 0:
-                test_df[col] = test_df[col].fillna(fill_value) # Use same fill_value from train
+                test_df[col] = test_df[col].fillna(fill_value)
 
     # 分类列：缺失值处理
     obj_cols = train_df.select_dtypes(include=["object", "category"]).columns
@@ -658,11 +748,29 @@ def save_submission(submission, base_prediction_type):
 # =============================
 
 if __name__ == "__main__":
+    print("\n" + "="*80)
+    print("Kaggle AutoGluon - 自动机器学习流程".center(80))
+    print("="*80)
+
     # 1. 数据加载
     # TRAIN_DATA_PATH, TEST_DATA_PATH, SAMPLE_SUBMISSION_PATH, LABEL are from global config
     train_df, test_df, sample_submission_df = load_data(
         TRAIN_DATA_PATH, TEST_DATA_PATH, SAMPLE_SUBMISSION_PATH
     )
+
+    # 1.1 数据验证
+    print("\n=== 数据验证 ===")
+    is_valid, warnings = validate_data(train_df, test_df, LABEL)
+    if warnings:
+        for warning in warnings:
+            print(f"  {warning}")
+    if not is_valid:
+        print("\n❌ 数据验证失败，请检查数据！")
+        exit(1)
+    print("✓ 数据验证通过")
+
+    # 1.2 打印数据信息
+    print_data_info(train_df, test_df, LABEL)
 
     # 2. 基础预处理
     # 示例：使用不同的填充策略 (默认情况下这些行是注释掉的)
