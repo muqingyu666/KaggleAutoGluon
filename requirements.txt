@@ -1,5 +1,15 @@
-autogluon
-pandas
-matplotlib
-PyYAML
-scikit-learn
+# AutoML核心库
+autogluon>=1.0.0
+
+# 数据处理和分析
+pandas>=1.3.0
+numpy>=1.21.0
+
+# 可视化
+matplotlib>=3.4.0
+
+# 配置文件解析
+PyYAML>=5.4
+
+# 机器学习工具
+scikit-learn>=0.24.0
