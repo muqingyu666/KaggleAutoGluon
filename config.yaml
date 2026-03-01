@@ -1,88 +1,42 @@
 # ==============================
-# Kaggle AutoGluon 配置文件
+# KaggleML 配置文件
 # ==============================
-# 本配置文件控制AutoML流程的所有主要参数
-# 支持分类和回归任务的自动识别和处理
+# 修改此文件来适配你的数据集和任务
 
-# ==============================
-# 基础设置
-# ==============================
+# --- 数据路径 ---
+train_path: "data/train_data.csv"
+test_path: "data/test_data.csv"
+sample_submission_path: "sample_submission.csv"  # 无则设为 null
+target: "income"       # 目标列名
+id_col: "id"           # ID 列名，无则设为 null
 
-# 随机种子 - 用于结果复现
-SEED: 0
+# --- 问题类型与评估指标 ---
+# problem_type: "classification" 或 "regression"
+# 分类指标: roc_auc, accuracy, f1, log_loss
+# 回归指标: rmse, mae, r2
+problem_type: "classification"
+eval_metric: "roc_auc"
 
-# 目标列名称 - 你的训练数据中需要预测的列
-# 分类任务示例: "income", "target", "label"
-# 回归任务示例: "price", "sales", "score"
-LABEL: "income"
+# --- 要运行的模型 ---
+# 支持: random_forest, xgboost, lightgbm, logistic_regression, linear_regression, autogluon
+# 分类任务会自动跳过 linear_regression，回归任务会自动跳过 logistic_regression
+models:
+  - random_forest
+  - xgboost
+  - lightgbm
+  - logistic_regression
+  # - linear_regression      # 回归任务时启用
+  # - autogluon              # 可选，需要: pip install autogluon
 
-# ==============================
-# 数据文件路径
-# ==============================
+# --- 交叉验证 ---
+cv:
+  n_splits: 5
+  seed: 42
 
-# 训练数据文件路径（必需）
-TRAIN_DATA_PATH: "data/train_data.csv"
+# --- 输出 ---
+output_dir: "results"
 
-# 测试数据文件路径（必需）
-TEST_DATA_PATH: "data/test_data.csv"
-
-# 样本提交文件路径（可选，可设为 null 或留空）
-# 如果提供，将按照此文件的格式生成预测结果
-SAMPLE_SUBMISSION_PATH: "sample_submission.csv"
-
-# 输出目录 - 保存所有结果文件
-# 包括: submission_*.csv（提交文件）, feature_importance.png（特征重要性图）, leaderboard.csv（模型排行榜）
-OUTPUT_DIR: "results"
-
-# 模型保存目录 - AutoGluon训练的模型将保存在此
-MODELS_DIR: "autogluon_models"
-
-# ==============================
-# AutoGluon 训练参数
-# ==============================
-
-# 训练时间限制（秒）
-# 建议值: 快速测试 300-600, 正式训练 3600-7200, 高质量模型 >7200
-TIME_LIMIT: 3600
-
-# 评估指标 - 这个参数非常重要，会自动决定任务类型！
-#
-# 分类任务指标（使用这些会触发分类模式）:
-#   - 'roc_auc': ROC曲线下面积（二分类推荐）
-#   - 'accuracy': 准确率
-#   - 'f1': F1分数
-#   - 'log_loss': 对数损失
-#   - 'precision': 精确率
-#   - 'recall': 召回率
-#   - 'pac_score': PAC分数
-#
-# 回归任务指标（使用这些会触发回归模式）:
-#   - 'rmse' 或 'root_mean_squared_error': 均方根误差
-#   - 'mse' 或 'mean_squared_error': 均方误差
-#   - 'mae' 或 'mean_absolute_error': 平均绝对误差
-#   - 'r2': R²决定系数
-EVAL_METRIC: "roc_auc"
-
-# AutoGluon 预设质量档位
-# 可选值:
-#   - 'best_quality': 最高质量（训练时间最长，模型最好）
-#   - 'high_quality': 高质量（平衡质量和时间）
-#   - 'medium_quality': 中等质量（训练较快）
-#   - 'good_quality': 良好质量
-#   - 'optimize_for_deployment': 优化部署（模型更小更快）
-PRESETS: "best_quality"
-
-# ==============================
-# 预测输出设置
-# ==============================
-
-# 预测类型 - 控制输出文件的内容
-#
-# 对于分类任务:
-#   - 'class': 只输出预测的类别标签
-#   - 'prob': 只输出正类的概率值
-#   - 'both': 同时输出类别标签和概率值（推荐）
-#
-# 对于回归任务:
-#   此设置会被忽略，始终输出数值预测结果
-PREDICTION_TYPE: "both"
+# --- AutoGluon 配置（可选，仅当 models 中包含 autogluon 时生效）---
+# autogluon:
+#   time_limit: 600          # 训练时间限制（秒）
+#   presets: "medium_quality" # best_quality / high_quality / medium_quality

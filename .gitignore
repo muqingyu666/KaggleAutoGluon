@@ -5,36 +5,22 @@ __pycache__/
 *.so
 .Python
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-pip-wheel-metadata/
-share/python-wheels/
 *.egg-info/
-.installed.cfg
 *.egg
-MANIFEST
 
-# Virtual Environment
+# 虚拟环境
 .venv/
 venv/
 ENV/
 env/
-.virtualenv
 
-# AutoGluon Models and Results
-autogluon_models/
+# 模型和结果
 results/
+autogluon_models/
 *.pkl
 *.pth
+*.joblib
 
 # IDE
 .vscode/
@@ -44,17 +30,16 @@ results/
 *~
 .DS_Store
 
-# Jupyter Notebook
-.ipynb_checkpoints
+# Jupyter
+.ipynb_checkpoints/
 *.ipynb
 
-# Data files (uncomment if you don't want to track large data files)
+# 大数据文件（按需取消注释）
 # *.csv
 # *.parquet
-# *.feather
 # data/
 
-# Logs
+# 日志
 *.log
 
 # OS

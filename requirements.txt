@@ -1,15 +1,17 @@
-# AutoML核心库
-autogluon>=1.0.0
-
-# 数据处理和分析
+# 数据处理
 pandas>=1.3.0
 numpy>=1.21.0
+
+# 机器学习
+scikit-learn>=1.0.0
+xgboost>=1.5.0
+lightgbm>=3.3.0
 
 # 可视化
 matplotlib>=3.4.0
 
-# 配置文件解析
+# 配置文件
 PyYAML>=5.4
 
-# 机器学习工具
-scikit-learn>=0.24.0
+# AutoGluon（可选，依赖较多，按需安装）
+# pip install autogluon
